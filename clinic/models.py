@@ -1,10 +1,83 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.text import slugify
 
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 DOCUMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".webp"}
+
+CYRILLIC_TRANSLIT = str.maketrans({
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+    "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+    "ф": "f", "х": "h", "ц": "c", "ч": "ch", "ш": "sh", "щ": "sch",
+    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+})
+
+
+def make_slug(value):
+    value = (value or "").strip().lower().translate(CYRILLIC_TRANSLIT)
+    return slugify(value) or "item"
+
+
+def truncate(value, max_length):
+    return (value or "").strip()[:max_length]
+
+
+def compact_description(value, max_length=180):
+    return truncate(" ".join((value or "").split()), max_length)
+
+
+def get_title_source(instance):
+    for field in ("title", "name", "full_name", "address"):
+        value = getattr(instance, field, "")
+        if value:
+            return str(value)
+    return instance.__class__.__name__
+
+
+def get_description_source(instance):
+    for field in ("short_description", "description", "text", "address"):
+        value = getattr(instance, field, "")
+        if value:
+            return str(value)
+    return ""
+
+
+def ensure_unique_slug(instance, source):
+    if instance.slug:
+        instance.slug = make_slug(instance.slug)
+        return
+
+    model = instance.__class__
+    base_slug = make_slug(source)
+    slug = base_slug
+    index = 2
+    queryset = model.objects.all()
+    if instance.pk:
+        queryset = queryset.exclude(pk=instance.pk)
+
+    while queryset.filter(slug=slug).exists():
+        suffix = f"-{index}"
+        slug = f"{base_slug[:180 - len(suffix)]}{suffix}"
+        index += 1
+
+    instance.slug = slug
+
+
+def fill_seo_fields(instance):
+    title = get_title_source(instance)
+    description = get_description_source(instance)
+
+    if hasattr(instance, "seo_title") and not instance.seo_title:
+        instance.seo_title = truncate(title, 255)
+    if hasattr(instance, "seo_description") and not instance.seo_description:
+        instance.seo_description = compact_description(description)
+    if hasattr(instance, "og_title") and not instance.og_title:
+        instance.og_title = truncate(instance.seo_title or title, 255)
+    if hasattr(instance, "og_description") and not instance.og_description:
+        instance.og_description = compact_description(instance.seo_description or description)
 
 
 def validate_upload_size(file):
@@ -41,7 +114,7 @@ class ActiveOrderedModel(models.Model):
 
 
 class SeoModel(models.Model):
-    slug = models.SlugField("Slug", max_length=180, unique=True)
+    slug = models.SlugField("Slug", max_length=180, unique=True, blank=True)
     seo_title = models.CharField("SEO title", max_length=255, blank=True)
     seo_description = models.TextField("SEO description", blank=True)
     og_title = models.CharField("Open Graph title", max_length=255, blank=True)
@@ -56,6 +129,11 @@ class SeoModel(models.Model):
 
     class Meta:
         abstract = True
+
+    def save(self, *args, **kwargs):
+        ensure_unique_slug(self, get_title_source(self))
+        fill_seo_fields(self)
+        super().save(*args, **kwargs)
 
 
 class Branch(ActiveOrderedModel):
@@ -124,7 +202,7 @@ class ServiceImage(ActiveOrderedModel):
 
 class PriceCategory(ActiveOrderedModel):
     name = models.CharField("Название", max_length=255)
-    slug = models.SlugField("Slug", max_length=180, unique=True)
+    slug = models.SlugField("Slug", max_length=180, unique=True, blank=True)
 
     class Meta(ActiveOrderedModel.Meta):
         verbose_name = "Категория прайса"
@@ -132,6 +210,10 @@ class PriceCategory(ActiveOrderedModel):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        ensure_unique_slug(self, self.name)
+        super().save(*args, **kwargs)
 
 
 class PriceItem(ActiveOrderedModel):
@@ -237,6 +319,10 @@ class PatientsPage(models.Model):
     def __str__(self):
         return self.title
 
+    def save(self, *args, **kwargs):
+        fill_seo_fields(self)
+        super().save(*args, **kwargs)
+
 
 class AboutPage(models.Model):
     title = models.CharField("Заголовок", max_length=255, default="О клинике")
@@ -251,6 +337,10 @@ class AboutPage(models.Model):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        fill_seo_fields(self)
+        super().save(*args, **kwargs)
 
 
 class GalleryImage(ActiveOrderedModel):
@@ -301,6 +391,10 @@ class ContactInfo(models.Model):
     def __str__(self):
         return self.address
 
+    def save(self, *args, **kwargs):
+        fill_seo_fields(self)
+        super().save(*args, **kwargs)
+
 
 class Requisites(models.Model):
     company_name = models.CharField("Полное наименование", max_length=500)
@@ -323,7 +417,7 @@ class Requisites(models.Model):
 
 class DocumentCategory(ActiveOrderedModel):
     title = models.CharField("Название", max_length=255)
-    slug = models.SlugField("Slug", max_length=180, unique=True)
+    slug = models.SlugField("Slug", max_length=180, unique=True, blank=True)
 
     class Meta(ActiveOrderedModel.Meta):
         verbose_name = "Категория документа"
@@ -331,6 +425,10 @@ class DocumentCategory(ActiveOrderedModel):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        ensure_unique_slug(self, self.title)
+        super().save(*args, **kwargs)
 
 
 class Document(ActiveOrderedModel):
