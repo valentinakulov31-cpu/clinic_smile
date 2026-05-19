@@ -1,0 +1,57 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.so
+.Python
+pip-wheel-metadata/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Django/local runtime
+db.sqlite3
+*.sqlite3
+media/
+staticfiles/
+local_settings.py
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Generated API/docs artifacts
+openapi-schema.yml
+
+# Logs/temp
+*.log
+*.tmp
+*.bak
+*.swp
+Thumbs.db
+Desktop.ini
+
+# IDE/editor
+.idea/
+.vscode/
+
+# Local design capture artifacts
+figma-screenshots/
+figma-screenshots.zip
