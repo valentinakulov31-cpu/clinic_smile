@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    path("ckeditor5/", include("django_ckeditor_5.urls")),
     path("api/", include("clinic.urls")),
     path("api/requests/", include("appointments.urls")),
 ]
