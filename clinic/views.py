@@ -12,10 +12,13 @@ from .models import (
     Offer,
     PatientsPage,
     PriceCategory,
+    PriceGroup,
     PriceItem,
     Review,
     Service,
     ServiceCategory,
+    ServicePageBlock,
+    ServicePageBlockItem,
     Specialist,
     Vacancy,
 )
@@ -73,7 +76,20 @@ class ServiceListView(ActiveQuerysetMixin, generics.ListAPIView):
 
 @extend_schema(tags=["content"], summary="Детальная услуга")
 class ServiceDetailView(generics.RetrieveAPIView):
-    queryset = Service.objects.filter(is_active=True).select_related("category").prefetch_related("branches", "images")
+    queryset = (
+        Service.objects.filter(is_active=True)
+        .select_related("category")
+        .prefetch_related(
+            "branches",
+            "images",
+            Prefetch(
+                "blocks",
+                queryset=ServicePageBlock.objects.filter(is_active=True).prefetch_related(
+                    Prefetch("items", queryset=ServicePageBlockItem.objects.filter(is_active=True))
+                ),
+            ),
+        )
+    )
     serializer_class = ServiceDetailSerializer
     lookup_field = "slug"
 
@@ -87,9 +103,15 @@ class PriceCategoryListView(ActiveQuerysetMixin, generics.ListAPIView):
         items = PriceItem.objects.filter(is_active=True)
         if branch:
             items = items.filter(branch_id=branch)
+        groups = PriceGroup.objects.filter(is_active=True, items__in=items).prefetch_related(
+            Prefetch("items", queryset=items)
+        )
         return (
             PriceCategory.objects.filter(is_active=True, items__in=items)
-            .prefetch_related(Prefetch("items", queryset=items))
+            .prefetch_related(
+                Prefetch("groups", queryset=groups),
+                Prefetch("items", queryset=items.filter(group__isnull=True)),
+            )
             .distinct()
         )
 

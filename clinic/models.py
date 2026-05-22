@@ -200,6 +200,53 @@ class ServiceImage(ActiveOrderedModel):
         return self.caption or self.service.name
 
 
+class ServicePageBlock(ActiveOrderedModel):
+    class BlockType(models.TextChoices):
+        FEATURES = "features", "Преимущества"
+        CONTENT = "content", "Текстовый блок"
+        INDICATIONS = "indications", "Кому подойдет"
+        TECHNOLOGIES = "technologies", "Технологии и услуги"
+        PRODUCT_CARDS = "product_cards", "Карточки систем/материалов"
+        STEPS = "steps", "Этапы работы"
+        CTA = "cta", "Блок записи"
+        CUSTOM = "custom", "Произвольный блок"
+
+    service = models.ForeignKey(Service, verbose_name="Услуга", related_name="blocks", on_delete=models.CASCADE)
+    block_type = models.CharField("Тип блока", max_length=32, choices=BlockType.choices, default=BlockType.CONTENT)
+    title = models.CharField("Заголовок", max_length=255, blank=True)
+    subtitle = models.CharField("Подзаголовок", max_length=500, blank=True)
+    body = models.TextField("Текст", blank=True)
+    image = models.ImageField("Изображение", upload_to="services/blocks/", blank=True, null=True, validators=[validate_image])
+    button_label = models.CharField("Текст кнопки", max_length=120, blank=True)
+    button_url = models.CharField("Ссылка кнопки", max_length=500, blank=True)
+
+    class Meta(ActiveOrderedModel.Meta):
+        verbose_name = "Блок страницы услуги"
+        verbose_name_plural = "Блоки страниц услуг"
+
+    def __str__(self):
+        return self.title or self.get_block_type_display()
+
+
+class ServicePageBlockItem(ActiveOrderedModel):
+    block = models.ForeignKey(ServicePageBlock, verbose_name="Блок", related_name="items", on_delete=models.CASCADE)
+    title = models.CharField("Заголовок", max_length=255, blank=True)
+    subtitle = models.CharField("Подзаголовок", max_length=500, blank=True)
+    description = models.TextField("Описание", blank=True)
+    image = models.ImageField("Изображение", upload_to="services/block-items/", blank=True, null=True, validators=[validate_image])
+    price = models.CharField("Цена", max_length=120, blank=True)
+    label = models.CharField("Метка", max_length=120, blank=True)
+    url = models.CharField("Ссылка", max_length=500, blank=True)
+    metadata = models.JSONField("Дополнительные характеристики", default=dict, blank=True)
+
+    class Meta(ActiveOrderedModel.Meta):
+        verbose_name = "Элемент блока услуги"
+        verbose_name_plural = "Элементы блоков услуг"
+
+    def __str__(self):
+        return self.title or self.label or self.block.get_block_type_display()
+
+
 class PriceCategory(ActiveOrderedModel):
     name = models.CharField("Название", max_length=255)
     slug = models.SlugField("Slug", max_length=180, unique=True, blank=True)
@@ -216,8 +263,21 @@ class PriceCategory(ActiveOrderedModel):
         super().save(*args, **kwargs)
 
 
+class PriceGroup(ActiveOrderedModel):
+    category = models.ForeignKey(PriceCategory, verbose_name="Категория", related_name="groups", on_delete=models.CASCADE)
+    title = models.CharField("Название", max_length=255)
+
+    class Meta(ActiveOrderedModel.Meta):
+        verbose_name = "Группа прайса"
+        verbose_name_plural = "Группы прайса"
+
+    def __str__(self):
+        return self.title
+
+
 class PriceItem(ActiveOrderedModel):
     category = models.ForeignKey(PriceCategory, verbose_name="Категория", related_name="items", on_delete=models.PROTECT)
+    group = models.ForeignKey(PriceGroup, verbose_name="Группа", related_name="items", on_delete=models.SET_NULL, blank=True, null=True)
     service = models.ForeignKey(Service, verbose_name="Связанная услуга", related_name="price_items", on_delete=models.SET_NULL, blank=True, null=True)
     branch = models.ForeignKey(Branch, verbose_name="Филиал", related_name="price_items", on_delete=models.SET_NULL, blank=True, null=True)
     title = models.CharField("Название", max_length=500)
@@ -453,6 +513,8 @@ class Review(ActiveOrderedModel):
     source = models.CharField("Источник", max_length=255, blank=True)
     source_url = models.URLField("Ссылка на источник", blank=True)
     reviewed_at = models.DateField("Дата отзыва", blank=True, null=True)
+    specialist = models.ForeignKey(Specialist, verbose_name="Специалист", related_name="reviews", on_delete=models.SET_NULL, blank=True, null=True)
+    service = models.ForeignKey(Service, verbose_name="Услуга", related_name="reviews", on_delete=models.SET_NULL, blank=True, null=True)
 
     class Meta(ActiveOrderedModel.Meta):
         verbose_name = "Отзыв"

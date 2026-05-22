@@ -13,12 +13,15 @@ from .models import (
     PatientsPage,
     PaymentMethod,
     PriceCategory,
+    PriceGroup,
     PriceItem,
     Requisites,
     Review,
     Service,
     ServiceCategory,
     ServiceImage,
+    ServicePageBlock,
+    ServicePageBlockItem,
     Specialist,
     SpecialistDocument,
     Vacancy,
@@ -32,6 +35,7 @@ RICH_TEXT_FIELDS = {
     "responsibilities",
     "requirements",
     "conditions",
+    "body",
 }
 
 
@@ -58,6 +62,20 @@ class ActiveOrderedAdmin(RichTextAdminMixin, admin.ModelAdmin):
 class ServiceImageInline(admin.TabularInline):
     model = ServiceImage
     extra = 1
+
+
+class ServicePageBlockInline(admin.TabularInline):
+    model = ServicePageBlock
+    extra = 1
+    fields = ("block_type", "title", "is_active", "sort_order")
+    show_change_link = True
+
+
+class ServicePageBlockItemInline(admin.TabularInline):
+    model = ServicePageBlockItem
+    extra = 1
+    fields = ("title", "subtitle", "price", "label", "url", "is_active", "sort_order")
+    show_change_link = True
 
 
 class SpecialistDocumentInline(admin.TabularInline):
@@ -116,7 +134,41 @@ class ServiceAdmin(TabbedAdminMixin, ActiveOrderedAdmin):
     list_filter = ("category", "is_active")
     search_fields = ("name", "short_description", "description")
     filter_horizontal = ("branches",)
-    inlines = (ServiceImageInline,)
+    inlines = (ServiceImageInline, ServicePageBlockInline)
+
+
+@admin.register(ServicePageBlock)
+class ServicePageBlockAdmin(ActiveOrderedAdmin):
+    list_display = ("__str__", "service", "block_type", "is_active", "sort_order")
+    list_filter = ("service", "block_type", "is_active")
+    search_fields = ("title", "subtitle", "body", "service__name")
+    inlines = (ServicePageBlockItemInline,)
+    fieldsets = (
+        (
+            "Основное",
+            {
+                "fields": (
+                    "service",
+                    "block_type",
+                    "title",
+                    "subtitle",
+                    "body",
+                    "image",
+                    "button_label",
+                    "button_url",
+                    "is_active",
+                    "sort_order",
+                )
+            },
+        ),
+    )
+
+
+@admin.register(ServicePageBlockItem)
+class ServicePageBlockItemAdmin(ActiveOrderedAdmin):
+    list_display = ("__str__", "block", "is_active", "sort_order")
+    list_filter = ("block__service", "block__block_type", "is_active")
+    search_fields = ("title", "subtitle", "description", "label")
 
 
 @admin.register(PriceCategory)
@@ -124,10 +176,17 @@ class PriceCategoryAdmin(ActiveOrderedAdmin):
     fields = ("name", "slug", "is_active", "sort_order")
 
 
+@admin.register(PriceGroup)
+class PriceGroupAdmin(ActiveOrderedAdmin):
+    list_display = ("title", "category", "is_active", "sort_order")
+    list_filter = ("category", "is_active")
+    search_fields = ("title",)
+
+
 @admin.register(PriceItem)
 class PriceItemAdmin(ActiveOrderedAdmin):
-    list_display = ("title", "category", "price", "is_from_price", "is_active", "sort_order")
-    list_filter = ("category", "is_active", "is_from_price")
+    list_display = ("title", "category", "group", "price", "is_from_price", "is_active", "sort_order")
+    list_filter = ("category", "group", "is_active", "is_from_price")
     search_fields = ("title", "comment")
 
 
@@ -301,6 +360,6 @@ class DocumentAdmin(ActiveOrderedAdmin):
 
 @admin.register(Review)
 class ReviewAdmin(ActiveOrderedAdmin):
-    list_display = ("author_name", "rating", "source", "reviewed_at", "is_active", "sort_order")
-    list_filter = ("rating", "source", "is_active")
+    list_display = ("author_name", "rating", "source", "specialist", "service", "reviewed_at", "is_active", "sort_order")
+    list_filter = ("rating", "source", "specialist", "service", "is_active")
     search_fields = ("author_name", "text", "source")
