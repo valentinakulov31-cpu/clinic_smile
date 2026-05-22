@@ -14,6 +14,21 @@ Django + Django REST Framework backend для сайта клиники «Улы
 - Базовая защита форм: honeypot и rate limit.
 - Ограничение форматов и размера загружаемых файлов.
 
+## Структура кода
+
+- `clinic/models.py` — доменные модели сайта.
+- `clinic/model_utils.py` — slug, SEO-автозаполнение и валидация файлов.
+- `clinic/admin.py` — регистрация моделей в админке.
+- `clinic/admin_utils.py` — общие admin-миксины: вкладки, rich text, сортировка.
+- `clinic/*_serializers.py` — публичный JSON-контракт, разнесенный по доменам.
+- `clinic/serializers.py` — совместимый фасад для импорта всех serializer-классов.
+- `clinic/*_views.py` — публичные API views, разнесенные по доменам.
+- `clinic/views.py` — совместимый фасад для импорта всех view-классов.
+- `clinic/api_utils.py` — общие API-миксины и фильтрация.
+- `appointments/` — формы и заявки.
+
+Новые повторяемые страницы/блоки лучше сначала проверять на возможность переиспользования `ServicePageBlock` / `ServicePageBlockItem`, а не заводить отдельную модель под каждый визуальный блок.
+
 ## Установка
 
 ```bash
