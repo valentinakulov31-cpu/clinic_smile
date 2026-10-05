@@ -21,7 +21,6 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "drf_spectacular",
-    "django_ckeditor_5",
     "clinic",
     "appointments",
 ]
@@ -56,16 +55,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "clinic_backend.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
-        "NAME": os.getenv("DB_NAME", "clinic_db"),
-        "USER": os.getenv("DB_USER", "clinic_user"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "clinic_password"),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-        "PORT": os.getenv("DB_PORT", "5432"),
+db_engine = os.getenv("DB_ENGINE", "").strip()
+if db_engine:
+    DATABASES = {
+        "default": {
+            "ENGINE": db_engine,
+            "NAME": os.getenv("DB_NAME", "clinic_db"),
+            "USER": os.getenv("DB_USER", "clinic_user"),
+            "PASSWORD": os.getenv("DB_PASSWORD", "clinic_password"),
+            "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 LANGUAGE_CODE = "ru-ru"
 TIME_ZONE = "Asia/Krasnoyarsk"
@@ -115,37 +123,3 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@example.com")
 REQUEST_NOTIFICATION_EMAIL = os.getenv("REQUEST_NOTIFICATION_EMAIL", "")
 
 MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "20"))
-
-CKEDITOR_5_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
-CKEDITOR_5_CONFIGS = {
-    "default": {
-        "toolbar": [
-            "heading",
-            "|",
-            "bold",
-            "italic",
-            "underline",
-            "strikethrough",
-            "link",
-            "|",
-            "bulletedList",
-            "numberedList",
-            "blockQuote",
-            "|",
-            "insertTable",
-            "undo",
-            "redo",
-        ],
-        "table": {
-            "contentToolbar": [
-                "tableColumn",
-                "tableRow",
-                "mergeTableCells",
-                "tableProperties",
-                "tableCellProperties",
-            ]
-        },
-        "height": 300,
-        "width": "100%",
-    }
-}

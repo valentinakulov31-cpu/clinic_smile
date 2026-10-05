@@ -1,0 +1,73 @@
+#page_blocks-group .inline-related h3 {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+}
+
+#page_blocks-group .inline-related h3 .inline_label {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+#page_blocks-group .inline-related h3 .delete {
+    align-items: center;
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    margin-left: auto;
+}
+
+#page_blocks-group .inline-related h3 .page-block-unsaved-delete {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+
+#page_blocks-group .page-block-delete-native > input,
+#page_blocks-group .page-block-delete-native > label {
+    clip: rect(0 0 0 0);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+#page_blocks-group .page-block-delete-button {
+    appearance: none;
+    background: var(--delete-button-bg);
+    background-image: none;
+    border: 1px solid var(--delete-button-bg);
+    border-radius: 4px;
+    color: var(--button-fg);
+    cursor: pointer;
+    display: inline-block;
+    font: inherit;
+    font-weight: 600;
+    height: auto;
+    line-height: 1.2;
+    min-height: 0;
+    min-width: 0;
+    overflow: visible;
+    padding: 6px 10px;
+    text-decoration: none;
+    text-indent: 0;
+    white-space: nowrap;
+    width: auto;
+}
+
+#page_blocks-group .page-block-delete-button:hover,
+#page_blocks-group .page-block-delete-button:focus {
+    background: var(--delete-button-hover-bg);
+    border-color: var(--delete-button-hover-bg);
+    color: var(--button-fg);
+}
+
+#page_blocks-group .page-block-delete-button.is-undo {
+    background: var(--button-bg);
+    border-color: var(--button-bg);
+}
+
+#page_blocks-group .page-block-marked-delete {
+    outline: 2px solid var(--delete-button-bg);
+    opacity: 0.65;
+}

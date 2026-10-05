@@ -26,6 +26,7 @@ db.sqlite3
 *.sqlite3
 media/
 staticfiles/
+test_media/
 local_settings.py
 
 # Tool caches

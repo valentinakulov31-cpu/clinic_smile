@@ -5,10 +5,13 @@ from rest_framework.response import Response
 
 from .models import (
     AboutPage,
+    Advantage,
     Branch,
     ContactInfo,
     Document,
+    DocumentCategory,
     GalleryImage,
+    HomePage,
     Offer,
     PatientsPage,
     PriceCategory,
@@ -16,15 +19,25 @@ from .models import (
     Review,
     Service,
     ServiceCategory,
+    ServiceImage,
+    ServicePageBlock,
+    ServicePageBlockCard,
+    SiteSettings,
+    SocialLink,
     Specialist,
+    SpecialistCategory,
+    StaticPage,
     Vacancy,
 )
 from .serializers import (
     AboutPageSerializer,
+    AdvantageSerializer,
     BranchSerializer,
     ContactInfoSerializer,
+    DocumentCategoryWithDocumentsSerializer,
     DocumentSerializer,
     GalleryImageSerializer,
+    HomePageSerializer,
     OfferSerializer,
     PatientsPageSerializer,
     PriceCategorySerializer,
@@ -32,18 +45,28 @@ from .serializers import (
     ServiceCategorySerializer,
     ServiceDetailSerializer,
     ServiceListSerializer,
+    SiteSettingsSerializer,
+    SocialLinkSerializer,
+    SpecialistCategoryWithSpecialistsSerializer,
     SpecialistDetailSerializer,
     SpecialistListSerializer,
+    StaticPageSerializer,
     VacancyDetailSerializer,
     VacancyListSerializer,
 )
 
 
-class ActiveQuerysetMixin:
+class ActiveFilteredQuerysetMixin:
+    branch_query_param = "branch"
+    category_query_param = "category"
+
+    def get_base_queryset(self):
+        return super().get_queryset()
+
     def get_queryset(self):
-        queryset = super().get_queryset().filter(is_active=True)
-        branch = self.request.query_params.get("branch")
-        category = self.request.query_params.get("category")
+        queryset = self.get_base_queryset().filter(is_active=True)
+        branch = self.request.query_params.get(self.branch_query_param)
+        category = self.request.query_params.get(self.category_query_param)
 
         if branch and hasattr(queryset.model, "branches"):
             queryset = queryset.filter(branches__id=branch)
@@ -53,34 +76,68 @@ class ActiveQuerysetMixin:
         return queryset.distinct()
 
 
+class ActiveListAPIView(ActiveFilteredQuerysetMixin, generics.ListAPIView):
+    # Контентные справочники небольшие, фронту удобнее получать их без пагинации.
+    pagination_class = None
+
+
+class ActiveSlugDetailAPIView(generics.RetrieveAPIView):
+    lookup_field = "slug"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(is_active=True)
+
+
+class SingletonPageAPIView(generics.GenericAPIView):
+    queryset = None
+
+    def get_object(self):
+        return self.get_queryset().first()
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object()
+        if not obj:
+            return Response(None)
+        return Response(self.get_serializer(obj).data)
+
+
 @extend_schema(tags=["content"], summary="Список филиалов")
-class BranchListView(ActiveQuerysetMixin, generics.ListAPIView):
+class BranchListView(ActiveListAPIView):
     queryset = Branch.objects.all()
     serializer_class = BranchSerializer
 
 
 @extend_schema(tags=["content"], summary="Список категорий услуг")
-class ServiceCategoryListView(ActiveQuerysetMixin, generics.ListAPIView):
+class ServiceCategoryListView(ActiveListAPIView):
     queryset = ServiceCategory.objects.all()
     serializer_class = ServiceCategorySerializer
 
 
 @extend_schema(tags=["content"], summary="Список услуг")
-class ServiceListView(ActiveQuerysetMixin, generics.ListAPIView):
+class ServiceListView(ActiveListAPIView):
     queryset = Service.objects.select_related("category").prefetch_related("branches")
     serializer_class = ServiceListSerializer
 
 
 @extend_schema(tags=["content"], summary="Детальная услуга")
-class ServiceDetailView(generics.RetrieveAPIView):
-    queryset = Service.objects.filter(is_active=True).select_related("category").prefetch_related("branches", "images")
+class ServiceDetailView(ActiveSlugDetailAPIView):
+    queryset = Service.objects.select_related("category").prefetch_related(
+        "branches",
+        Prefetch("images", queryset=ServiceImage.objects.filter(is_active=True)),
+        Prefetch(
+            "page_blocks",
+            queryset=ServicePageBlock.objects.filter(is_active=True).prefetch_related(
+                Prefetch("cards", queryset=ServicePageBlockCard.objects.filter(is_active=True))
+            ),
+        ),
+    )
     serializer_class = ServiceDetailSerializer
-    lookup_field = "slug"
 
 
 @extend_schema(tags=["content"], summary="Прайс, сгруппированный по категориям")
-class PriceCategoryListView(ActiveQuerysetMixin, generics.ListAPIView):
+class PriceCategoryListView(generics.ListAPIView):
     serializer_class = PriceCategorySerializer
+    pagination_class = None
 
     def get_queryset(self):
         branch = self.request.query_params.get("branch")
@@ -95,90 +152,132 @@ class PriceCategoryListView(ActiveQuerysetMixin, generics.ListAPIView):
 
 
 @extend_schema(tags=["content"], summary="Список специальных предложений")
-class OfferListView(ActiveQuerysetMixin, generics.ListAPIView):
+class OfferListView(ActiveListAPIView):
     queryset = Offer.objects.prefetch_related("branches")
     serializer_class = OfferSerializer
 
 
-@extend_schema(tags=["content"], summary="Детальное специальное предложение")
-class OfferDetailView(generics.RetrieveAPIView):
-    queryset = Offer.objects.filter(is_active=True).prefetch_related("branches")
-    serializer_class = OfferSerializer
-    lookup_field = "slug"
-
-
 @extend_schema(tags=["content"], summary="Список специалистов")
-class SpecialistListView(ActiveQuerysetMixin, generics.ListAPIView):
+class SpecialistListView(ActiveListAPIView):
     queryset = Specialist.objects.prefetch_related("services", "branches")
     serializer_class = SpecialistListSerializer
 
 
+@extend_schema(tags=["content"], summary="Специалисты, сгруппированные по категориям (Врачи, Младший персонал, Администрация)")
+class SpecialistCategoryListView(generics.ListAPIView):
+    serializer_class = SpecialistCategoryWithSpecialistsSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        specialists = Specialist.objects.filter(is_active=True)
+        return (
+            SpecialistCategory.objects.filter(is_active=True, specialists__in=specialists)
+            .prefetch_related(Prefetch("specialists", queryset=specialists))
+            .distinct()
+        )
+
+
 @extend_schema(tags=["content"], summary="Детальный специалист")
-class SpecialistDetailView(generics.RetrieveAPIView):
-    queryset = Specialist.objects.filter(is_active=True).prefetch_related("services", "branches", "documents")
+class SpecialistDetailView(ActiveSlugDetailAPIView):
+    queryset = Specialist.objects.prefetch_related("services", "branches", "documents")
     serializer_class = SpecialistDetailSerializer
-    lookup_field = "slug"
 
 
 @extend_schema(tags=["content"], summary="Страница пациентам")
-class PatientsPageView(generics.GenericAPIView):
+class PatientsPageView(SingletonPageAPIView):
+    queryset = PatientsPage.objects.prefetch_related("offers")
     serializer_class = PatientsPageSerializer
-
-    def get(self, request):
-        page = PatientsPage.objects.prefetch_related("offers").first()
-        if not page:
-            return Response(None)
-        return Response(self.get_serializer(page).data)
 
 
 @extend_schema(tags=["content"], summary="Страница о клинике")
-class AboutPageView(generics.GenericAPIView):
+class AboutPageView(SingletonPageAPIView):
+    queryset = AboutPage.objects.prefetch_related("gallery")
     serializer_class = AboutPageSerializer
-
-    def get(self, request):
-        page = AboutPage.objects.prefetch_related("gallery").first()
-        if not page:
-            return Response(None)
-        return Response(self.get_serializer(page).data)
 
 
 @extend_schema(tags=["content"], summary="Галерея")
-class GalleryListView(ActiveQuerysetMixin, generics.ListAPIView):
+class GalleryListView(ActiveListAPIView):
     queryset = GalleryImage.objects.all()
     serializer_class = GalleryImageSerializer
 
 
 @extend_schema(tags=["content"], summary="Список вакансий")
-class VacancyListView(ActiveQuerysetMixin, generics.ListAPIView):
+class VacancyListView(ActiveListAPIView):
     queryset = Vacancy.objects.all()
     serializer_class = VacancyListSerializer
 
 
 @extend_schema(tags=["content"], summary="Детальная вакансия")
-class VacancyDetailView(generics.RetrieveAPIView):
-    queryset = Vacancy.objects.filter(is_active=True)
+class VacancyDetailView(ActiveSlugDetailAPIView):
+    queryset = Vacancy.objects.all()
     serializer_class = VacancyDetailSerializer
-    lookup_field = "slug"
 
 
 @extend_schema(tags=["content"], summary="Контакты и реквизиты")
-class ContactInfoView(generics.GenericAPIView):
+class ContactInfoView(SingletonPageAPIView):
+    queryset = ContactInfo.objects.all()
     serializer_class = ContactInfoSerializer
-
-    def get(self, request):
-        contacts = ContactInfo.objects.first()
-        if not contacts:
-            return Response(None)
-        return Response(self.get_serializer(contacts).data)
 
 
 @extend_schema(tags=["content"], summary="Список документов")
-class DocumentListView(ActiveQuerysetMixin, generics.ListAPIView):
+class DocumentListView(ActiveListAPIView):
     queryset = Document.objects.select_related("category")
     serializer_class = DocumentSerializer
 
 
+@extend_schema(tags=["content"], summary="Документы, сгруппированные по категориям")
+class DocumentCategoryListView(generics.ListAPIView):
+    serializer_class = DocumentCategoryWithDocumentsSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        documents = Document.objects.filter(is_active=True)
+        return (
+            DocumentCategory.objects.filter(is_active=True, documents__in=documents)
+            .prefetch_related(Prefetch("documents", queryset=documents))
+            .distinct()
+        )
+
+
 @extend_schema(tags=["content"], summary="Список отзывов")
-class ReviewListView(ActiveQuerysetMixin, generics.ListAPIView):
+class ReviewListView(ActiveListAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
+
+
+@extend_schema(tags=["content"], summary="Главная страница")
+class HomePageView(SingletonPageAPIView):
+    queryset = HomePage.objects.all()
+    serializer_class = HomePageSerializer
+
+
+@extend_schema(tags=["content"], summary="Список преимуществ")
+class AdvantageListView(ActiveListAPIView):
+    queryset = Advantage.objects.all()
+    serializer_class = AdvantageSerializer
+
+
+@extend_schema(tags=["content"], summary="Список соцсетей")
+class SocialLinkListView(ActiveListAPIView):
+    queryset = SocialLink.objects.all()
+    serializer_class = SocialLinkSerializer
+
+
+@extend_schema(tags=["content"], summary="Настройки сайта (шапка, футер, CTA)")
+class SiteSettingsView(SingletonPageAPIView):
+    queryset = SiteSettings.objects.all()
+    serializer_class = SiteSettingsSerializer
+
+
+@extend_schema(tags=["content"], summary="Статичные страницы (заголовки, SEO, тексты)")
+class StaticPageListView(generics.ListAPIView):
+    queryset = StaticPage.objects.all()
+    serializer_class = StaticPageSerializer
+    pagination_class = None
+
+
+@extend_schema(tags=["content"], summary="Статичная страница по ключу")
+class StaticPageDetailView(generics.RetrieveAPIView):
+    queryset = StaticPage.objects.all()
+    serializer_class = StaticPageSerializer
+    lookup_field = "key"

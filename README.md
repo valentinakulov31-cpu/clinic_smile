@@ -7,6 +7,8 @@ Django + Django REST Framework backend для сайта клиники «Улы
 ## Что уже заложено
 
 - Контентные модели для филиалов, услуг, прайса, акций, специалистов, страниц, галереи, вакансий, контактов, документов и отзывов.
+- Главная страница (hero, блок «О клинике»), преимущества, соцсети и общие настройки сайта (копирайт, дисклеймер, CTA-блок записи, ссылка на полный прайс).
+- Статичные страницы (`/api/pages/`) для заголовков и SEO списковых страниц и политики конфиденциальности.
 - Админка Django для управления всем изменяемым контентом.
 - Публичные API endpoints для frontend.
 - POST endpoints для заявок: консультация, запись, обратный звонок, отклик на вакансию.
@@ -38,6 +40,8 @@ GRANT ALL PRIVILEGES ON DATABASE clinic_db TO clinic_user;
 
 Если на сервере будут другие доступы, достаточно поменять `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` в `.env`.
 
+Полное описание разделов админки и всех API: [docs/API_AND_ADMIN.md](docs/API_AND_ADMIN.md).
+
 ## Основные API
 
 Документация API:
@@ -52,8 +56,8 @@ GRANT ALL PRIVILEGES ON DATABASE clinic_db TO clinic_user;
 - `GET /api/services/{slug}/`
 - `GET /api/prices/`
 - `GET /api/offers/`
-- `GET /api/offers/{slug}/`
 - `GET /api/specialists/`
+- `GET /api/specialist-categories/` — специалисты, сгруппированные по разделам (Врачи, Младший персонал, Администрация)
 - `GET /api/specialists/{slug}/`
 - `GET /api/patients-page/`
 - `GET /api/about/`
@@ -62,7 +66,13 @@ GRANT ALL PRIVILEGES ON DATABASE clinic_db TO clinic_user;
 - `GET /api/vacancies/{slug}/`
 - `GET /api/contacts/`
 - `GET /api/documents/`
+- `GET /api/document-categories/` — документы, сгруппированные по категориям
 - `GET /api/reviews/`
+- `GET /api/home/` — главная страница (hero, блок «О клинике», преимущества)
+- `GET /api/advantages/`
+- `GET /api/social-links/`
+- `GET /api/settings/` — настройки сайта: логотип, копирайт, дисклеймер, CTA-блок, ссылка на полный прайс, соцсети
+- `GET /api/pages/` и `GET /api/pages/{key}/` — статичные страницы (`services`, `prices`, `doctors`, `offers`, `reviews`, `documents`, `vacancies`, `policy`)
 - `POST /api/requests/consultation/`
 - `POST /api/requests/appointment/`
 - `POST /api/requests/callback/`
@@ -102,19 +112,22 @@ GRANT ALL PRIVILEGES ON DATABASE clinic_db TO clinic_user;
 
 В админке `slug` остается в основной вкладке записи. SEO и Open Graph поля вынесены в отдельную вкладку `SEO` у сущностей, где они есть.
 
-## HTML-редактор в админке
+## Контент страниц услуг
 
-Для контентных текстовых полей подключен CKEditor 5. Он позволяет вставлять и редактировать:
+Детальная страница услуги собирается из повторяемых блоков:
 
-- заголовки;
-- жирный/курсив/подчеркивание;
-- ссылки;
-- списки;
-- цитаты;
-- таблицы;
-- базовое форматирование текста.
+- у самой услуги есть верхняя часть страницы: `preview_logo`, `card_image`, `name`, `short_description` и три `hero_badge`;
+- ниже идут блоки `ServicePageBlock` с полями `block_type`, `title`, `description`, `image`, `sort_order`;
+- `block_type = text` — обычный текстовый блок, `description` предназначено для Markdown-текста;
+- `block_type = cards` — карусель карточек (например, виды имплантов): карточки (`title`, `subtitle`, `description`, `price_text`, `image`) добавляются в разделе админки «Блоки страницы услуги» при открытии блока отдельной записью;
+- в остальных частях админки используются обычные текстовые поля без HTML-редактора.
 
-Редактор сохраняет HTML в обычные текстовые поля. Frontend получает этот HTML в API и должен выводить его как HTML-контент.
+## Соглашения по контенту
+
+- Пагинация на контентных списках отключена: фронт получает массивы целиком.
+- Телефоны в «Контактах» и «Филиалах» вводятся в админке по одному на строку, в API отдаются массивом строк.
+- Источник контактов сайта (шапка, футер, страница контактов) — запись «Контакты» (`/api/contacts/`). «Филиалы» задел на будущее для нескольких адресов; сейчас их можно не заполнять.
+- Записи-синглтоны (главная, о клинике, пациентам, контакты, реквизиты, настройки сайта) создаются в одном экземпляре — админка не даст добавить вторую запись.
 
 ## Настройка email
 

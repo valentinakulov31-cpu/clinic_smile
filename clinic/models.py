@@ -104,7 +104,7 @@ def validate_document(file):
 
 class ActiveOrderedModel(models.Model):
     is_active = models.BooleanField("Активно", default=True)
-    sort_order = models.PositiveIntegerField("Сортировка", default=100)
+    sort_order = models.PositiveIntegerField("Сортировка", default=0)
     created_at = models.DateTimeField("Создано", auto_now_add=True)
     updated_at = models.DateTimeField("Обновлено", auto_now=True)
 
@@ -155,8 +155,15 @@ class Branch(ActiveOrderedModel):
 
 class ServiceCategory(ActiveOrderedModel, SeoModel):
     name = models.CharField("Название", max_length=255)
-    description = models.TextField("Описание", blank=True)
+    description = models.TextField("Описание (подпись на карточке)", blank=True)
     icon = models.ImageField("Иконка", upload_to="service-icons/", blank=True, null=True, validators=[validate_image])
+    image = models.ImageField(
+        "Фото карточки (главная)",
+        upload_to="service-categories/",
+        blank=True,
+        null=True,
+        validators=[validate_image],
+    )
 
     class Meta(ActiveOrderedModel.Meta):
         verbose_name = "Категория услуги"
@@ -176,7 +183,18 @@ class Service(ActiveOrderedModel, SeoModel):
     name = models.CharField("Название", max_length=255)
     short_description = models.TextField("Краткое описание", blank=True)
     description = models.TextField("Полное описание", blank=True)
+    icon = models.ImageField("Иконка (сетка услуг)", upload_to="services/icons/", blank=True, null=True, validators=[validate_image])
     card_image = models.ImageField("Изображение карточки", upload_to="services/", blank=True, null=True, validators=[validate_image])
+    preview_logo = models.ImageField(
+        "Логотип для страницы услуги",
+        upload_to="services/logos/",
+        blank=True,
+        null=True,
+        validators=[validate_image],
+    )
+    hero_badge_1 = models.CharField("Бейдж героя 1", max_length=255, blank=True)
+    hero_badge_2 = models.CharField("Бейдж героя 2", max_length=255, blank=True)
+    hero_badge_3 = models.CharField("Бейдж героя 3", max_length=255, blank=True)
     branches = models.ManyToManyField(Branch, verbose_name="Филиалы", related_name="services", blank=True)
 
     class Meta(ActiveOrderedModel.Meta):
@@ -198,6 +216,59 @@ class ServiceImage(ActiveOrderedModel):
 
     def __str__(self):
         return self.caption or self.service.name
+
+
+class ServicePageBlock(ActiveOrderedModel):
+    class BlockType(models.TextChoices):
+        TEXT = "text", "Текстовый блок"
+        CARDS = "cards", "Карточки (карусель)"
+        STEPS = "steps", "Этапы (нумерованные карточки)"
+
+    service = models.ForeignKey(Service, verbose_name="Услуга", related_name="page_blocks", on_delete=models.CASCADE)
+    block_type = models.CharField("Тип блока", max_length=16, choices=BlockType.choices, default=BlockType.TEXT)
+    title = models.CharField("Заголовок блока", max_length=255, blank=True)
+    description = models.TextField("Описание блока (Markdown)", blank=True)
+    image = models.ImageField(
+        "Картинка блока",
+        upload_to="services/blocks/",
+        blank=True,
+        null=True,
+        validators=[validate_image],
+    )
+
+    class Meta(ActiveOrderedModel.Meta):
+        verbose_name = "Блок страницы услуги"
+        verbose_name_plural = "Блоки страницы услуги"
+
+    def __str__(self):
+        return self.title or f"Блок услуги #{self.pk or 'new'}"
+
+
+class ServicePageBlockCard(ActiveOrderedModel):
+    block = models.ForeignKey(
+        ServicePageBlock,
+        verbose_name="Блок",
+        related_name="cards",
+        on_delete=models.CASCADE,
+    )
+    title = models.CharField("Заголовок", max_length=255)
+    subtitle = models.CharField("Подзаголовок", max_length=255, blank=True)
+    description = models.TextField("Описание", blank=True)
+    price_text = models.CharField("Цена (текст)", max_length=255, blank=True)
+    image = models.ImageField(
+        "Изображение",
+        upload_to="services/block-cards/",
+        blank=True,
+        null=True,
+        validators=[validate_image],
+    )
+
+    class Meta(ActiveOrderedModel.Meta):
+        verbose_name = "Карточка блока услуги"
+        verbose_name_plural = "Карточки блоков услуг"
+
+    def __str__(self):
+        return self.title
 
 
 class PriceCategory(ActiveOrderedModel):
@@ -258,7 +329,31 @@ class Offer(ActiveOrderedModel, SeoModel):
         return self.title
 
 
+class SpecialistCategory(ActiveOrderedModel):
+    name = models.CharField("Название", max_length=255)
+    slug = models.SlugField("Slug", max_length=180, unique=True, blank=True)
+
+    class Meta(ActiveOrderedModel.Meta):
+        verbose_name = "Категория специалистов"
+        verbose_name_plural = "Категории специалистов"
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        ensure_unique_slug(self, self.name)
+        super().save(*args, **kwargs)
+
+
 class Specialist(ActiveOrderedModel, SeoModel):
+    category = models.ForeignKey(
+        SpecialistCategory,
+        verbose_name="Категория",
+        related_name="specialists",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
     full_name = models.CharField("ФИО", max_length=255)
     photo = models.ImageField("Фото", upload_to="specialists/", blank=True, null=True, validators=[validate_image])
     position = models.CharField("Должность", max_length=255, blank=True)
@@ -406,6 +501,13 @@ class Requisites(models.Model):
     correspondent_account = models.CharField("Корреспондентский счет", max_length=64, blank=True)
     bik = models.CharField("БИК", max_length=32, blank=True)
     legal_address = models.CharField("Юридический адрес", max_length=500, blank=True)
+    file = models.FileField(
+        "Файл с реквизитами (PDF)",
+        upload_to="requisites/",
+        blank=True,
+        null=True,
+        validators=[validate_document],
+    )
 
     class Meta:
         verbose_name = "Реквизиты"
@@ -444,6 +546,139 @@ class Document(ActiveOrderedModel):
 
     def __str__(self):
         return self.title
+
+
+class HomePage(models.Model):
+    hero_title = models.CharField("Заголовок героя", max_length=255, blank=True)
+    hero_subtitle = models.TextField("Подзаголовок героя", blank=True)
+    hero_button_text = models.CharField("Текст кнопки героя", max_length=255, blank=True)
+    hero_secondary_button_text = models.CharField("Текст второй кнопки героя", max_length=255, blank=True)
+    hero_image = models.ImageField(
+        "Изображение героя",
+        upload_to="pages/",
+        blank=True,
+        null=True,
+        validators=[validate_image],
+    )
+    about_title = models.CharField("Заголовок блока о клинике", max_length=255, blank=True)
+    about_text = models.TextField("Текст блока о клинике", blank=True)
+    about_image = models.ImageField(
+        "Изображение блока о клинике",
+        upload_to="pages/",
+        blank=True,
+        null=True,
+        validators=[validate_image],
+    )
+    seo_title = models.CharField("SEO title", max_length=255, blank=True)
+    seo_description = models.TextField("SEO description", blank=True)
+
+    class Meta:
+        verbose_name = "Главная страница"
+        verbose_name_plural = "Главная страница"
+
+    def __str__(self):
+        return self.hero_title or "Главная страница"
+
+    def save(self, *args, **kwargs):
+        if not self.seo_title:
+            self.seo_title = truncate(self.hero_title, 255)
+        if not self.seo_description:
+            self.seo_description = compact_description(self.hero_subtitle or self.about_text)
+        super().save(*args, **kwargs)
+
+
+class Advantage(ActiveOrderedModel):
+    title = models.CharField("Заголовок", max_length=255, blank=True)
+    text = models.TextField("Текст")
+    icon = models.ImageField(
+        "Иконка",
+        upload_to="advantages/",
+        blank=True,
+        null=True,
+        validators=[validate_image],
+    )
+
+    class Meta(ActiveOrderedModel.Meta):
+        verbose_name = "Преимущество"
+        verbose_name_plural = "Преимущества"
+
+    def __str__(self):
+        return self.title or truncate(self.text, 50)
+
+
+class SocialLink(ActiveOrderedModel):
+    title = models.CharField("Название", max_length=255)
+    url = models.URLField("Ссылка")
+    icon = models.ImageField(
+        "Иконка",
+        upload_to="social-icons/",
+        blank=True,
+        null=True,
+        validators=[validate_image],
+    )
+
+    class Meta(ActiveOrderedModel.Meta):
+        verbose_name = "Соцсеть"
+        verbose_name_plural = "Соцсети"
+
+    def __str__(self):
+        return self.title
+
+
+class SiteSettings(models.Model):
+    site_name = models.CharField("Название сайта", max_length=255, blank=True)
+    logo = models.ImageField(
+        "Логотип",
+        upload_to="site/",
+        blank=True,
+        null=True,
+        validators=[validate_image],
+    )
+    copyright_text = models.CharField("Копирайт в футере", max_length=255, blank=True)
+    disclaimer = models.TextField("Дисклеймер (противопоказания)", blank=True)
+    cta_title = models.CharField("Заголовок блока записи", max_length=255, blank=True)
+    cta_subtitle = models.TextField("Подзаголовок блока записи", blank=True)
+    price_full_url = models.URLField("Ссылка на полную версию прайса", blank=True)
+
+    class Meta:
+        verbose_name = "Настройки сайта"
+        verbose_name_plural = "Настройки сайта"
+
+    def __str__(self):
+        return self.site_name or "Настройки сайта"
+
+
+class StaticPage(models.Model):
+    class PageKey(models.TextChoices):
+        SERVICES = "services", "Услуги (список)"
+        PRICES = "prices", "Цены"
+        DOCTORS = "doctors", "Врачи (список)"
+        OFFERS = "offers", "Акции (список)"
+        REVIEWS = "reviews", "Отзывы"
+        DOCUMENTS = "documents", "Документы"
+        VACANCIES = "vacancies", "Вакансии (список)"
+        POLICY = "policy", "Политика конфиденциальности"
+
+    key = models.CharField("Страница", max_length=32, choices=PageKey.choices, unique=True)
+    title = models.CharField("Заголовок", max_length=255, blank=True)
+    subtitle = models.CharField("Подзаголовок", max_length=500, blank=True)
+    text = models.TextField("Текст (Markdown)", blank=True)
+    seo_title = models.CharField("SEO title", max_length=255, blank=True)
+    seo_description = models.TextField("SEO description", blank=True)
+
+    class Meta:
+        verbose_name = "Статичная страница"
+        verbose_name_plural = "Статичные страницы"
+
+    def __str__(self):
+        return self.title or self.get_key_display()
+
+    def save(self, *args, **kwargs):
+        if not self.seo_title:
+            self.seo_title = truncate(self.title or self.get_key_display(), 255)
+        if not self.seo_description:
+            self.seo_description = compact_description(self.subtitle or self.text)
+        super().save(*args, **kwargs)
 
 
 class Review(ActiveOrderedModel):
