@@ -11,6 +11,12 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",") if host.strip()]
 
+# Enable only behind a proxy that overwrites X-Forwarded-Proto.
+if os.getenv("DJANGO_BEHIND_PROXY", "0") == "1":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = os.getenv("DJANGO_SECURE_COOKIES", "0") == "1"
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

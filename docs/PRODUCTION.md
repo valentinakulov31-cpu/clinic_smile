@@ -1,5 +1,8 @@
 # Production: 2026-10-09
 
+The `production-2026-10-09-https` tag adds the domain and HTTPS configuration
+on top of the notification release. See [DOMAIN.md](DOMAIN.md).
+
 The `production-2026-10-09` tag records the source for the email-notification
 release. It adds private, validated admin recipients and a local SMTP backend.
 Migration `0006_site_settings_notification_emails` only adds a JSON column;
@@ -15,10 +18,10 @@ configuration in `deploy/nginx.conf` also matched the live configuration.
 
 ## Current Deployment
 
-- Website: http://201.24.63.92/
-- Admin: http://201.24.63.92/admin/
-- Backend release: `/opt/clinic_smile/releases/20261009-notifications`
-- Previous backend release: `/opt/clinic_smile/releases/20260916172153`
+- Website: https://ulybnis24.ru/
+- Admin: https://ulybnis24.ru/admin/
+- Backend release: `/opt/clinic_smile/releases/20261009-domain`
+- Previous backend release: `/opt/clinic_smile/releases/20261009-notifications`
 - Active backend link: `/opt/clinic_smile/app`
 - Python environment: `/opt/clinic_smile/venv`
 - Service: `clinic_smile` (gunicorn under systemd)
@@ -29,6 +32,7 @@ configuration in `deploy/nginx.conf` also matched the live configuration.
 - Previous frontend release: `/opt/ulibnis_front/releases/20261005080516-331fa2a-fix1`
 - Active frontend link: `/opt/ulibnis_front/current`
 - Pre-release database, uploads and nginx backup: `/opt/clinic_smile/backups/20261009-notifications`
+- Pre-HTTPS environment and nginx backup: `/opt/clinic_smile/backups/20261009-domain`
 
 Production secrets remain in the server's `.env`. Database contents, uploaded
 files, environment files and test uploads must not be committed.
