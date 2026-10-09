@@ -1,12 +1,20 @@
+import logging
+from smtplib import SMTPException
+
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail
+from django.urls import reverse
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
 
 from .models import LeadRequest, RequestType
 from .serializers import LeadRequestSerializer
+from clinic.models import SiteSettings
+
+
+logger = logging.getLogger(__name__)
 
 
 class LeadRequestCreateView(generics.CreateAPIView):
@@ -41,8 +49,9 @@ class LeadRequestCreateView(generics.CreateAPIView):
         return f"lead-request:{self.request_type}:{ip}"
 
     def send_notification(self, lead):
-        recipient = settings.REQUEST_NOTIFICATION_EMAIL
-        if not recipient:
+        site_settings = SiteSettings.objects.first()
+        recipients = site_settings.request_notification_emails if site_settings else []
+        if not recipients:
             return
 
         subject = f"Новая заявка: {lead.get_request_type_display()}"
@@ -57,9 +66,15 @@ class LeadRequestCreateView(generics.CreateAPIView):
             f"Филиал: {lead.branch or '-'}",
             f"Вакансия: {lead.vacancy or '-'}",
             f"Источник: {lead.source or '-'}",
-            f"Файл: {lead.attachment.url if lead.attachment else '-'}",
+            f"Файл: {self.request.build_absolute_uri(lead.attachment.url) if lead.attachment else '-'}",
+            "Админка: " + self.request.build_absolute_uri(
+                reverse("admin:appointments_leadrequest_change", args=[lead.pk])
+            ),
         ]
-        send_mail(subject, "\n".join(lines), settings.DEFAULT_FROM_EMAIL, [recipient], fail_silently=True)
+        try:
+            send_mail(subject, "\n".join(lines), settings.DEFAULT_FROM_EMAIL, recipients, fail_silently=False)
+        except (SMTPException, OSError):
+            logger.exception("Email notification failed for lead %s; the lead is saved", lead.pk)
 
 
 @extend_schema(tags=["requests"], summary="Создать заявку на бесплатную консультацию")

@@ -1,4 +1,12 @@
-# Production Snapshot: 2026-10-05
+# Production: 2026-10-09
+
+The `production-2026-10-09` tag records the source for the email-notification
+release. It adds private, validated admin recipients and a local SMTP backend.
+Migration `0006_site_settings_notification_emails` only adds a JSON column;
+it does not replace or reseed existing content. See [SMTP.md](SMTP.md) for
+DNS activation and outgoing mail operations.
+
+## Previous Snapshot: 2026-10-05
 
 The `production-2026-10-05` Git tag records the backend source running on
 `201.24.63.92`. All 44 deployed source files were compared with the local source
@@ -9,16 +17,18 @@ configuration in `deploy/nginx.conf` also matched the live configuration.
 
 - Website: http://201.24.63.92/
 - Admin: http://201.24.63.92/admin/
-- Backend release: `/opt/clinic_smile/releases/20260916172153`
+- Backend release: `/opt/clinic_smile/releases/20261009-notifications`
+- Previous backend release: `/opt/clinic_smile/releases/20260916172153`
 - Active backend link: `/opt/clinic_smile/app`
 - Python environment: `/opt/clinic_smile/venv`
 - Service: `clinic_smile` (gunicorn under systemd)
 - Database: PostgreSQL
 - Uploaded files: `/opt/clinic_smile/shared/media`
 - Frontend repository: https://github.com/Markywa/ulibnis
-- Frontend release: `/opt/ulibnis_front/releases/20261005080516-331fa2a-fix1`
+- Frontend release: `/opt/ulibnis_front/releases/20261009-notifications`
+- Previous frontend release: `/opt/ulibnis_front/releases/20261005080516-331fa2a-fix1`
 - Active frontend link: `/opt/ulibnis_front/current`
-- Backup of database, uploads and nginx: `/opt/clinic_smile/backups/20261005075818`
+- Pre-release database, uploads and nginx backup: `/opt/clinic_smile/backups/20261009-notifications`
 
 Production secrets remain in the server's `.env`. Database contents, uploaded
 files, environment files and test uploads must not be committed.

@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Branch, ContactInfo
+from .models import Branch, ContactInfo, SiteSettings
 
 
 class PhoneListField(forms.CharField):
@@ -38,4 +38,37 @@ class BranchAdminForm(forms.ModelForm):
 
     class Meta:
         model = Branch
+        fields = "__all__"
+
+
+class EmailListField(forms.CharField):
+    widget = forms.Textarea(attrs={"rows": 4})
+
+    def prepare_value(self, value):
+        if isinstance(value, list):
+            return "\n".join(value)
+        return value
+
+    def to_python(self, value):
+        value = super().to_python(value)
+        addresses = []
+        seen = set()
+        for line in value.splitlines():
+            address = line.strip()
+            if address and address.lower() not in seen:
+                forms.EmailField().clean(address)
+                addresses.append(address)
+                seen.add(address.lower())
+        return addresses
+
+
+class SiteSettingsAdminForm(forms.ModelForm):
+    request_notification_emails = EmailListField(
+        label="Получатели заявок",
+        required=False,
+        help_text="По одному email на строку. Пустой список отключает уведомления.",
+    )
+
+    class Meta:
+        model = SiteSettings
         fields = "__all__"

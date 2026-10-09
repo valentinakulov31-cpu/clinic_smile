@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import models
 from django.utils.text import slugify
 
@@ -100,6 +101,15 @@ def validate_image(file):
 def validate_document(file):
     validate_upload_size(file)
     validate_extension(file, DOCUMENT_EXTENSIONS)
+
+
+def validate_email_list(value):
+    if not isinstance(value, list):
+        raise ValidationError("Укажите список email-адресов.")
+    for address in value:
+        if not isinstance(address, str):
+            raise ValidationError("Каждый получатель должен быть email-адресом.")
+        validate_email(address)
 
 
 class ActiveOrderedModel(models.Model):
@@ -639,6 +649,12 @@ class SiteSettings(models.Model):
     cta_title = models.CharField("Заголовок блока записи", max_length=255, blank=True)
     cta_subtitle = models.TextField("Подзаголовок блока записи", blank=True)
     price_full_url = models.URLField("Ссылка на полную версию прайса", blank=True)
+    request_notification_emails = models.JSONField(
+        "Получатели заявок",
+        default=list,
+        blank=True,
+        validators=[validate_email_list],
+    )
 
     class Meta:
         verbose_name = "Настройки сайта"

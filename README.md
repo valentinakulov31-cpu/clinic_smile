@@ -140,6 +140,15 @@ EMAIL_PORT=587
 EMAIL_HOST_USER=user@example.com
 EMAIL_HOST_PASSWORD=password
 EMAIL_USE_TLS=1
+EMAIL_USE_SSL=0
+EMAIL_TIMEOUT=10
 DEFAULT_FROM_EMAIL=user@example.com
-REQUEST_NOTIFICATION_EMAIL=clinic@example.com
 ```
+
+Получатели настраиваются в админке: «Настройки сайта» → «Получатели заявок»,
+по одному email на строку. Пустой список отключает уведомления. Эти адреса
+не публикуются в API. Заявка сохраняется до отправки письма; ошибка SMTP
+попадает в журнал и не мешает приёму заявки.
+
+Для сервера `201.24.63.92` используется локальный Postfix с DKIM.
+Настройки и DNS-записи: [docs/SMTP.md](docs/SMTP.md).

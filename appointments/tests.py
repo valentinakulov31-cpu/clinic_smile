@@ -1,9 +1,13 @@
+from smtplib import SMTPException
+from unittest.mock import patch
+
+from django.core import mail
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from clinic.models import Branch, Service, ServiceCategory, Specialist, Vacancy
+from clinic.models import Branch, Service, ServiceCategory, SiteSettings, Specialist, Vacancy
 
 from .models import LeadRequest, RequestType
 
@@ -91,3 +95,39 @@ class LeadRequestApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(LeadRequest.objects.first().vacancy_id, self.vacancy.id)
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", DEFAULT_FROM_EMAIL="noreply@example.com")
+class LeadNotificationTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.site_settings = SiteSettings.objects.create(
+            request_notification_emails=["reception@example.com", "manager@example.com"]
+        )
+
+    def submit(self):
+        return self.client.post(reverse("callback-request"), {"name": "Test", "phone": "+79990000000"})
+
+    def test_notification_reaches_all_configured_recipients(self):
+        response = self.submit()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, self.site_settings.request_notification_emails)
+        self.assertEqual(message.from_email, "noreply@example.com")
+        self.assertIn("+79990000000", message.body)
+        self.assertIn(reverse("admin:appointments_leadrequest_change", args=[response.json()["id"]]), message.body)
+
+    def test_empty_list_keeps_request_without_sending_email(self):
+        self.site_settings.request_notification_emails = []
+        self.site_settings.save()
+        self.assertEqual(self.submit().status_code, 201)
+        self.assertEqual(LeadRequest.objects.count(), 1)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_smtp_failure_does_not_lose_request(self):
+        with patch("appointments.views.send_mail", side_effect=SMTPException("SMTP unavailable")):
+            with self.assertLogs("appointments.views", level="ERROR"):
+                response = self.submit()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(LeadRequest.objects.count(), 1)

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .forms import BranchAdminForm, ContactInfoAdminForm
+from .forms import BranchAdminForm, ContactInfoAdminForm, SiteSettingsAdminForm
 from .models import (
     AboutPage,
     Advantage,
@@ -352,6 +352,7 @@ class SocialLinkAdmin(ActiveOrderedAdmin):
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(SingletonAdminMixin, admin.ModelAdmin):
+    form = SiteSettingsAdminForm
     fields = (
         "site_name",
         "logo",
@@ -360,6 +361,7 @@ class SiteSettingsAdmin(SingletonAdminMixin, admin.ModelAdmin):
         "cta_title",
         "cta_subtitle",
         "price_full_url",
+        "request_notification_emails",
     )
 
 
