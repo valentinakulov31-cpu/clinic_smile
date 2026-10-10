@@ -1,11 +1,15 @@
 # Production: 2026-10-10
 
-The `production-2026-10-10-cors` tag enables local frontend access to `/api/`.
-HTTP and HTTPS origins on `localhost`, `127.0.0.1` and `[::1]` are allowed on
-any port, including Angular's port 4200. Set `CORS_ALLOW_LOCALHOST=0` to
-disable this allowance. Other origins still use `CORS_ALLOWED_ORIGINS`.
-`CORS_ALLOW_ALL_ORIGINS` remains disabled in production. Admin CSRF and
-cross-origin credential restrictions are unchanged. No migrations are added.
+The deployed source remains the `production-2026-10-10-cors` tag. A subsequent
+production environment update on 2026-10-10 sets `CORS_ALLOW_ALL_ORIGINS=1`
+at the owner's request. `/api/` responds with `Access-Control-Allow-Origin: *`
+for any origin, including localhost and LAN development addresses. Preserve
+this environment setting when preparing future releases. Admin CSRF and
+cross-origin credential restrictions are unchanged. No migrations were added.
+
+If `CORS_ALLOW_ALL_ORIGINS=0`, the explicit `CORS_ALLOWED_ORIGINS` list and
+`CORS_ALLOW_LOCALHOST` setting apply again. `CORS_ALLOW_LOCALHOST=1` allows
+HTTP/HTTPS on `localhost`, `127.0.0.1` and `[::1]` with any port.
 
 Local clients should use `https://ulybnis24.ru/api/` directly, including the
 trailing slash on endpoints, or the frontend repository's development proxy.
@@ -47,6 +51,7 @@ configuration in `deploy/nginx.conf` also matched the live configuration.
 - Pre-release database, uploads and nginx backup: `/opt/clinic_smile/backups/20261009-notifications`
 - Pre-HTTPS environment and nginx backup: `/opt/clinic_smile/backups/20261009-domain`
 - Pre-CORS database, environment and source backup: `/opt/clinic_smile/backups/20261010-cors`
+- Environment backup before allowing all API origins: `/opt/clinic_smile/backups/20261010-cors-all`
 
 Production secrets remain in the server's `.env`. Database contents, uploaded
 files, environment files and test uploads must not be committed.
