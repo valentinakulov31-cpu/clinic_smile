@@ -99,6 +99,13 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "0") == "1"
+# Local frontend ports can change when another dev server is already running.
+CORS_ALLOWED_ORIGIN_REGEXES = (
+    [r"^https?://(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]+)?$"]
+    if os.getenv("CORS_ALLOW_LOCALHOST", "1") == "1"
+    else []
+)
+CORS_URLS_REGEX = r"^/api/"
 
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",

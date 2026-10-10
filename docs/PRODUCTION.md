@@ -1,4 +1,17 @@
-# Production: 2026-10-09
+# Production: 2026-10-10
+
+The `production-2026-10-10-cors` tag enables local frontend access to `/api/`.
+HTTP and HTTPS origins on `localhost`, `127.0.0.1` and `[::1]` are allowed on
+any port, including Angular's port 4200. Set `CORS_ALLOW_LOCALHOST=0` to
+disable this allowance. Other origins still use `CORS_ALLOWED_ORIGINS`.
+`CORS_ALLOW_ALL_ORIGINS` remains disabled in production. Admin CSRF and
+cross-origin credential restrictions are unchanged. No migrations are added.
+
+Local clients should use `https://ulybnis24.ru/api/` directly, including the
+trailing slash on endpoints, or the frontend repository's development proxy.
+Use the canonical HTTPS domain as the API base URL to avoid redirects.
+
+## Previous Release: 2026-10-09
 
 The `production-2026-10-09-https` tag adds the domain and HTTPS configuration
 on top of the notification release. See [DOMAIN.md](DOMAIN.md).
@@ -20,19 +33,20 @@ configuration in `deploy/nginx.conf` also matched the live configuration.
 
 - Website: https://ulybnis24.ru/
 - Admin: https://ulybnis24.ru/admin/
-- Backend release: `/opt/clinic_smile/releases/20261009-domain`
-- Previous backend release: `/opt/clinic_smile/releases/20261009-notifications`
+- Backend release: `/opt/clinic_smile/releases/20261010-cors`
+- Previous backend release: `/opt/clinic_smile/releases/20261009-domain`
 - Active backend link: `/opt/clinic_smile/app`
 - Python environment: `/opt/clinic_smile/venv`
 - Service: `clinic_smile` (gunicorn under systemd)
 - Database: PostgreSQL
 - Uploaded files: `/opt/clinic_smile/shared/media`
 - Frontend repository: https://github.com/Markywa/ulibnis
-- Frontend release: `/opt/ulibnis_front/releases/20261009-notifications`
-- Previous frontend release: `/opt/ulibnis_front/releases/20261005080516-331fa2a-fix1`
+- Frontend release: `/opt/ulibnis_front/releases/20261009-fonts`
+- Previous frontend release: `/opt/ulibnis_front/releases/20261009-notifications`
 - Active frontend link: `/opt/ulibnis_front/current`
 - Pre-release database, uploads and nginx backup: `/opt/clinic_smile/backups/20261009-notifications`
 - Pre-HTTPS environment and nginx backup: `/opt/clinic_smile/backups/20261009-domain`
+- Pre-CORS database, environment and source backup: `/opt/clinic_smile/backups/20261010-cors`
 
 Production secrets remain in the server's `.env`. Database contents, uploaded
 files, environment files and test uploads must not be committed.
