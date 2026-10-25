@@ -1,6 +1,15 @@
-# Production: 2026-10-10
+# Production: 2026-10-26
 
-The deployed source remains the `production-2026-10-10-cors` tag. A subsequent
+The `production-2026-10-26-lead-session` tag fixes public lead submission when
+the same browser is logged into Django admin. The four create-only request
+endpoints explicitly accept anonymous submissions without authenticating the
+admin session. Django admin still requires authentication and CSRF tokens.
+Validation, honeypot checks, rate limiting and email notifications are retained.
+No database migrations are added. See [INCIDENT-2026-10-26.md](INCIDENT-2026-10-26.md).
+
+## Previous Configuration: 2026-10-10
+
+The previous deployed source was the `production-2026-10-10-cors` tag. A subsequent
 production environment update on 2026-10-10 sets `CORS_ALLOW_ALL_ORIGINS=1`
 at the owner's request. `/api/` responds with `Access-Control-Allow-Origin: *`
 for any origin, including localhost and LAN development addresses. Preserve
@@ -37,8 +46,8 @@ configuration in `deploy/nginx.conf` also matched the live configuration.
 
 - Website: https://ulybnis24.ru/
 - Admin: https://ulybnis24.ru/admin/
-- Backend release: `/opt/clinic_smile/releases/20261010-cors`
-- Previous backend release: `/opt/clinic_smile/releases/20261009-domain`
+- Backend release: `/opt/clinic_smile/releases/20261026-lead-session`
+- Previous backend release: `/opt/clinic_smile/releases/20261010-cors`
 - Active backend link: `/opt/clinic_smile/app`
 - Python environment: `/opt/clinic_smile/venv`
 - Service: `clinic_smile` (gunicorn under systemd)
@@ -52,6 +61,7 @@ configuration in `deploy/nginx.conf` also matched the live configuration.
 - Pre-HTTPS environment and nginx backup: `/opt/clinic_smile/backups/20261009-domain`
 - Pre-CORS database, environment and source backup: `/opt/clinic_smile/backups/20261010-cors`
 - Environment backup before allowing all API origins: `/opt/clinic_smile/backups/20261010-cors-all`
+- Pre-fix database, environment and logs: `/opt/clinic_smile/backups/20261026-lead-session`
 
 Production secrets remain in the server's `.env`. Database contents, uploaded
 files, environment files and test uploads must not be committed.

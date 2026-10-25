@@ -7,6 +7,7 @@ from django.core.mail import send_mail
 from django.urls import reverse
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import LeadRequest, RequestType
@@ -18,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 
 class LeadRequestCreateView(generics.CreateAPIView):
+    # Public submissions must not inherit CSRF requirements from an admin session.
+    authentication_classes = []
+    permission_classes = [AllowAny]
     queryset = LeadRequest.objects.all()
     serializer_class = LeadRequestSerializer
     request_type = None
