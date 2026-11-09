@@ -19,6 +19,8 @@ class RequestType(models.TextChoices):
 
 
 class LeadRequest(models.Model):
+    visit = models.ForeignKey("traffic.Visit", verbose_name="Посещение", on_delete=models.SET_NULL,
+                              null=True, blank=True, related_name="leads", editable=False)
     request_type = models.CharField("Тип заявки", max_length=32, choices=RequestType.choices)
     name = models.CharField("Имя", max_length=255)
     phone = models.CharField("Телефон", max_length=64)

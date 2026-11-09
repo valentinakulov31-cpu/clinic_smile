@@ -1,0 +1,24 @@
+.traffic-report { max-width: 1400px; min-width: 0; }
+.traffic-actions { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 20px; }
+.traffic-filters { display: flex; align-items: end; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.traffic-filters label { display: block; margin-bottom: 6px; }
+.traffic-filters input, .traffic-filters select { min-height: 36px; box-sizing: border-box; max-width: 100%; }
+.traffic-filters .button { min-height: 36px; cursor: pointer; }
+.traffic-filters .errorlist { flex-basis: 100%; }
+.traffic-totals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 20px; margin: 0 0 32px; padding: 20px 0; border-block: 1px solid var(--hairline-color); }
+.traffic-totals dt { font-size: 13px; color: var(--body-quiet-color); }
+.traffic-totals dd { font-size: 24px; line-height: 1.5; margin: 6px 0 0; font-variant-numeric: tabular-nums; }
+.traffic-report section { margin-bottom: 28px; }
+.traffic-report h2 { font-size: 18px; }
+.traffic-table { overflow-x: auto; max-width: 100%; }
+.traffic-table table { width: 100%; }
+.traffic-table th, .traffic-table td { padding: 12px; vertical-align: top; }
+.traffic-table td { overflow-wrap: anywhere; max-width: 280px; }
+.traffic-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 1000px) { .traffic-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .traffic-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .traffic-totals dd { font-size: 21px; }
+  .traffic-filters { gap: 12px; }
+  .traffic-filters input, .traffic-filters select, .traffic-filters .button { min-height: 44px; }
+}

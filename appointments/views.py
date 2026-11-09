@@ -44,7 +44,8 @@ class LeadRequestCreateView(generics.CreateAPIView):
         return response
 
     def perform_create(self, serializer):
-        lead = serializer.save()
+        from traffic.views import visit_for_request
+        lead = serializer.save(visit=visit_for_request(self.request))
         self.send_notification(lead)
 
     def get_rate_limit_key(self):

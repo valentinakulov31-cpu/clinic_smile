@@ -1,0 +1,1 @@
+23 3 * * * www-data cd /opt/clinic_smile/app && /opt/clinic_smile/venv/bin/python manage.py prune_traffic >> /tmp/clinic-traffic-prune.log 2>&1
