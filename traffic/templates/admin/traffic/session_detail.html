@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'traffic/statistics-v1.css' %}?v=2">{% endblock %}
+{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Начало</a> &rsaquo; <a href="{{ summary_url }}">Статистика сайта</a> &rsaquo; <a href="{{ sessions_url }}">Журнал посещений</a> &rsaquo; Посещение</div>{% endblock %}
+{% block content %}
+<div class="traffic-report">
+  <nav class="traffic-actions" aria-label="Посещения">
+    <a href="{{ sessions_url }}">Журнал посещений</a>
+    <a href="{{ sessions_url }}?{{ visitor_query }}">Все посещения этого браузера</a>
+  </nav>
+  <dl class="traffic-details">
+    <div><dt>Посетитель (анонимно)</dt><dd><code>{{ visit.visitor_key|slice:":12" }}</code></dd></div>
+    <div><dt>Источник</dt><dd>{{ channel_label }}</dd></div>
+    <div><dt>Сайт перехода</dt><dd>{{ visit.referrer_host|default:"Не передан" }}</dd></div>
+    <div><dt>Начало</dt><dd>{{ visit.started_at|date:"d.m.Y H:i:s" }}</dd></div>
+    <div><dt>Последняя активность</dt><dd>{{ visit.last_seen|date:"d.m.Y H:i:s" }}</dd></div>
+    <div><dt>Активное время</dt><dd>{{ active_duration }}</dd></div>
+    {% if visit.link %}<div><dt>Рекламная ссылка</dt><dd>{{ visit.link.name }}</dd></div>{% endif %}
+    {% if visit.utm_source %}<div><dt>Источник (utm_source)</dt><dd>{{ visit.utm_source }}</dd></div>{% endif %}
+    {% if visit.utm_medium %}<div><dt>Канал (utm_medium)</dt><dd>{{ visit.utm_medium }}</dd></div>{% endif %}
+    {% if visit.utm_campaign %}<div><dt>Кампания (utm_campaign)</dt><dd>{{ visit.utm_campaign }}</dd></div>{% endif %}
+    {% if visit.utm_content %}<div><dt>Вариант (utm_content)</dt><dd>{{ visit.utm_content }}</dd></div>{% endif %}
+    {% if visit.utm_term %}<div><dt>Метка (utm_term)</dt><dd>{{ visit.utm_term }}</dd></div>{% endif %}
+  </dl>
+  <section aria-labelledby="pages-title">
+    <h2 id="pages-title">Просмотры страниц: {{ page.paginator.count }}</h2>
+    <div class="traffic-table"><table>
+      <thead><tr><th class="num">№</th><th>Время открытия</th><th>Страница</th><th class="num">Активное время</th></tr></thead>
+      <tbody>{% for item in page %}<tr><td class="num">{{ forloop.counter0|add:page.start_index }}</td><td class="traffic-nowrap">{{ item.started_at|date:"d.m.Y H:i:s" }}</td><td>{{ item.path }}</td><td class="num">{{ item.duration }}</td></tr>
+        {% empty %}<tr><td colspan="4">Просмотров нет.</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% include "admin/traffic/pagination.html" %}
+  </section>
+  {% if leads != None %}<section aria-labelledby="leads-title">
+    <h2 id="leads-title">Заявки</h2>
+    <ul>{% for lead in leads %}<li><a href="{% url 'admin:appointments_leadrequest_change' lead.pk %}">Заявка №{{ lead.pk }}</a> · {{ lead.get_status_display }}</li>{% empty %}<li>Заявок нет.</li>{% endfor %}</ul>
+  </section>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+<form method="get" class="traffic-filters">
+  {{ form.non_field_errors }}
+  {% for field in form %}
+    {% if field.is_hidden %}{{ field }}{{ field.errors }}{% else %}
+      <div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>
+    {% endif %}
+  {% endfor %}
+  <button type="submit" class="button">Показать</button>
+</form>

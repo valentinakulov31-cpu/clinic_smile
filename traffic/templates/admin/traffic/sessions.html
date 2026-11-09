@@ -1,0 +1,27 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'traffic/statistics-v1.css' %}?v=2">{% endblock %}
+{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Начало</a> &rsaquo; <a href="{{ summary_url }}">Статистика сайта</a> &rsaquo; Журнал посещений</div>{% endblock %}
+{% block content %}
+<div class="traffic-report">
+  <nav class="traffic-actions" aria-label="Статистика">
+    <a href="{{ summary_url }}?{{ filter_query }}">Общая сводка</a>
+    <a href="{{ links_url }}">Рекламные ссылки</a>
+    {% if visitor_label %}<a href="{{ sessions_url }}">Все посетители</a>{% endif %}
+  </nav>
+  {% include "admin/traffic/filters.html" %}
+  {% if visitor_label %}<h2>Посетитель {{ visitor_label }}</h2>{% endif %}
+  <h2>Посещений: {{ page.paginator.count }}</h2>
+  <div class="traffic-table"><table>
+    <thead><tr><th>Начало посещения</th><th>Посетитель (анонимно)</th><th>Источник</th><th>Кампания / ссылка</th><th>Первая страница</th><th class="num">Страниц</th><th class="num">Активное время</th><th class="num">Заявки</th></tr></thead>
+    <tbody>{% for visit in page %}<tr>
+      <td class="traffic-nowrap"><a href="{% url 'admin:traffic_visit_session_detail' visit.pk %}">{{ visit.started_at|date:"d.m.Y H:i:s" }}</a></td>
+      <td><code>{{ visit.visitor_key|slice:":12" }}</code></td>
+      <td>{{ visit.channel_label }}{% if visit.utm_source or visit.referrer_host %}<span class="traffic-subline">{{ visit.utm_source|default:visit.referrer_host }}</span>{% endif %}</td>
+      <td>{{ visit.utm_campaign|default:"—" }}{% if visit.link %}<span class="traffic-subline">{{ visit.link.name }}</span>{% endif %}</td>
+      <td>{{ visit.landing_path }}</td><td class="num">{{ visit.page_count }}</td><td class="num">{{ visit.duration }}</td><td class="num">{{ visit.lead_count }}</td>
+    </tr>{% empty %}<tr><td colspan="8">За выбранный период посещений нет.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% include "admin/traffic/pagination.html" %}
+</div>
+{% endblock %}

@@ -1,18 +1,16 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'traffic/statistics-v1.css' %}">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'traffic/statistics-v1.css' %}?v=2">{% endblock %}
 {% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Начало</a> &rsaquo; Статистика сайта</div>{% endblock %}
 {% block content %}
 <div class="traffic-report">
   <nav class="traffic-actions" aria-label="Рекламные ссылки">
+    <a href="{{ sessions_url }}?{{ filter_query }}">Журнал посещений</a>
     <a href="{{ links_url }}">Рекламные ссылки</a>
     {% if can_add_link %}<a class="addlink" href="{{ add_url }}">Создать ссылку</a>{% endif %}
   </nav>
-  <form method="get" class="traffic-filters">
-    {{ form.non_field_errors }}
-    {% for field in form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}
-    <button type="submit" class="button">Показать</button>
-  </form>
+  {% include "admin/traffic/filters.html" %}
+  {% if form.visitor.value %}<h2>Посетитель {{ form.visitor.value|slice:":12" }}</h2><p><a href="{{ summary_url }}">Все посетители</a></p>{% endif %}
   <dl class="traffic-totals">
     <div><dt>Посещения</dt><dd>{{ totals.visits }}</dd></div>
     <div><dt>Посетители ≈</dt><dd>{{ totals.visitors }}</dd></div>
@@ -26,7 +24,7 @@
       <thead><tr><th>Источник / ссылка</th><th>Канал</th><th>Кампания</th><th class="num">Посещения</th><th class="num">Посетители ≈</th><th class="num">Активное время</th><th class="num">Заявки</th></tr></thead>
       <tbody>{% for row in sources %}<tr>
         <td>{% if row.link_id %}<a href="{% url 'admin:traffic_campaignlink_change' row.link_id %}">{{ row.label }}</a>{% else %}{{ row.label }}{% endif %}</td>
-        <td>{{ row.utm_medium|default:"—" }}</td><td>{{ row.utm_campaign|default:"—" }}</td>
+        <td>{{ row.channel_label }}{% if row.utm_medium %}<span class="traffic-subline">{{ row.utm_medium }}</span>{% endif %}</td><td>{{ row.utm_campaign|default:"—" }}</td>
         <td class="num">{{ row.visits }}</td><td class="num">{{ row.visitors }}</td><td class="num">{{ row.duration }}</td><td class="num">{{ row.leads }}</td>
       </tr>{% empty %}<tr><td colspan="7">За выбранный период посещений нет.</td></tr>{% endfor %}</tbody>
     </table></div>

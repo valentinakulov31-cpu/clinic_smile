@@ -1,10 +1,12 @@
 from datetime import datetime, time, timedelta
 from io import BytesIO
+from urllib.parse import urlencode
 
 from django import forms
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Sum
+from django.core.paginator import Paginator
+from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -15,6 +17,7 @@ from django.utils.html import format_html
 
 from appointments.models import LeadRequest
 from .models import CampaignLink, Visit
+from .sources import CHANNELS, CHANNEL_LABELS, channel_expression
 
 
 def duration(seconds):
@@ -26,6 +29,9 @@ class PeriodForm(forms.Form):
     start = forms.DateField(label="С", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
     end = forms.DateField(label="По", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
     link = forms.ModelChoiceField(label="Ссылка", queryset=CampaignLink.objects.all(), required=False, empty_label="Все источники")
+    channel = forms.ChoiceField(label="Источник", choices=(("", "Все источники"), *CHANNELS), required=False)
+    visitor = forms.RegexField(regex=r"^[a-f0-9]{64}$", required=False, widget=forms.HiddenInput,
+                              error_messages={"invalid": "Некорректный номер посетителя."})
 
     def clean(self):
         data = super().clean()
@@ -93,6 +99,12 @@ class CampaignLinkAdmin(admin.ModelAdmin):
 
 @admin.register(Visit)
 class StatisticsAdmin(admin.ModelAdmin):
+    def get_urls(self):
+        return [
+            path("sessions/", self.admin_site.admin_view(self.sessions), name="traffic_visit_sessions"),
+            path("sessions/<uuid:pk>/", self.admin_site.admin_view(self.session_detail), name="traffic_visit_session_detail"),
+        ] + super().get_urls()
+
     def has_add_permission(self, request):
         return False
 
@@ -102,9 +114,7 @@ class StatisticsAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    def changelist_view(self, request, extra_context=None):
-        if not self.has_view_permission(request):
-            raise PermissionDenied
+    def filtered_visits(self, request):
         today = timezone.localdate()
         params = request.GET.copy()
         params.setdefault("start", (today - timedelta(days=29)).isoformat())
@@ -117,6 +127,30 @@ class StatisticsAdmin(admin.ModelAdmin):
             visits = Visit.objects.filter(started_at__gte=start, started_at__lt=end)
             if form.cleaned_data["link"]:
                 visits = visits.filter(link=form.cleaned_data["link"])
+            if form.cleaned_data["visitor"]:
+                visits = visits.filter(visitor_key=form.cleaned_data["visitor"])
+        visits = visits.annotate(channel=channel_expression())
+        if form.is_valid() and form.cleaned_data["channel"]:
+            visits = visits.filter(channel=form.cleaned_data["channel"])
+        return form, visits
+
+    def report_context(self, request, title):
+        return {
+            **self.admin_site.each_context(request), "opts": self.model._meta, "title": title,
+            "summary_url": reverse("admin:traffic_visit_changelist"),
+            "sessions_url": reverse("admin:traffic_visit_sessions"),
+            "links_url": reverse("admin:traffic_campaignlink_changelist"),
+            "add_url": reverse("admin:traffic_campaignlink_add"),
+            "can_add_link": request.user.has_perm("traffic.add_campaignlink"),
+        }
+
+    def filter_query(self, form):
+        return urlencode({key: form.data.get(key) for key in form.fields if form.data.get(key)})
+
+    def changelist_view(self, request, extra_context=None):
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+        form, visits = self.filtered_visits(request)
         totals = visits.aggregate(visits=Count("id"), visitors=Count("visitor_key", distinct=True),
                                    pages=Sum("page_count"), seconds=Sum("active_seconds"))
         leads = LeadRequest.objects.filter(visit__in=visits).exclude(status="canceled")
@@ -124,7 +158,7 @@ class StatisticsAdmin(admin.ModelAdmin):
         totals["pages"] = totals["pages"] or 0
         totals["duration"] = duration((totals["seconds"] or 0) / (totals["visits"] or 1))
         groups = ["link_id", "link__name", "utm_source", "utm_medium", "utm_campaign", "referrer_host"]
-        sources = list(visits.values(*groups).annotate(visits=Count("id"), visitors=Count("visitor_key", distinct=True),
+        sources = list(visits.values(*groups, "channel").annotate(visits=Count("id"), visitors=Count("visitor_key", distinct=True),
                        seconds=Sum("active_seconds")).order_by("-visits")[:100])
         lead_counts = {
             tuple(row["visit__" + field] for field in groups): row["total"]
@@ -134,13 +168,51 @@ class StatisticsAdmin(admin.ModelAdmin):
             row["label"] = row["link__name"] or row["utm_source"] or row["referrer_host"] or "Прямой / неизвестный"
             row["duration"] = duration(row["seconds"] / row["visits"])
             row["leads"] = lead_counts.get(tuple(row[field] for field in groups), 0)
+            row["channel_label"] = CHANNEL_LABELS[row["channel"]]
         daily = list(visits.annotate(day=TruncDate("started_at")).values("day").annotate(visits=Count("id"),
                      visitors=Count("visitor_key", distinct=True)).order_by("-day"))
         context = {
-            **self.admin_site.each_context(request), "opts": self.model._meta,
-            "title": "Статистика сайта", "form": form, "totals": totals, "sources": sources,
-            "daily": daily, "links_url": reverse("admin:traffic_campaignlink_changelist"),
-            "add_url": reverse("admin:traffic_campaignlink_add"),
-            "can_add_link": request.user.has_perm("traffic.add_campaignlink"),
+            **self.report_context(request, "Статистика сайта"),
+            "form": form, "totals": totals, "sources": sources, "daily": daily,
+            "filter_query": self.filter_query(form),
         }
         return TemplateResponse(request, "admin/traffic/statistics.html", context)
+
+    def sessions(self, request):
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+        form, visits = self.filtered_visits(request)
+        visits = visits.select_related("link").annotate(
+            lead_count=Count("leads", filter=~Q(leads__status="canceled")),
+        ).order_by("-started_at", "-pk")
+        page = Paginator(visits, 50).get_page(request.GET.get("page"))
+        for visit in page:
+            visit.duration = duration(visit.active_seconds)
+            visit.channel_label = CHANNEL_LABELS[visit.channel]
+        visitor_key = form.cleaned_data.get("visitor") if form.is_valid() else ""
+        context = {
+            **self.report_context(request, "Журнал посещений"),
+            "form": form, "page": page, "filter_query": self.filter_query(form),
+            "visitor_label": visitor_key[:12] if visitor_key else "",
+        }
+        return TemplateResponse(request, "admin/traffic/sessions.html", context)
+
+    def session_detail(self, request, pk):
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+        visit = get_object_or_404(Visit.objects.select_related("link").annotate(channel=channel_expression()), pk=pk)
+        pages = visit.pages.order_by("started_at", "pk")
+        page = Paginator(pages, 100).get_page(request.GET.get("page"))
+        for item in page:
+            item.duration = duration(item.active_seconds)
+        leads = None
+        if request.user.has_perm("appointments.view_leadrequest") or request.user.has_perm("appointments.change_leadrequest"):
+            leads = visit.leads.exclude(status="canceled").only("id", "status").order_by("id")
+        today = timezone.localdate()
+        visitor_query = urlencode({"visitor": visit.visitor_key, "start": (today - timedelta(days=179)).isoformat(), "end": today.isoformat()})
+        context = {
+            **self.report_context(request, "Посещение " + timezone.localtime(visit.started_at).strftime("%d.%m.%Y %H:%M")),
+            "visit": visit, "page": page, "leads": leads, "channel_label": CHANNEL_LABELS[visit.channel],
+            "active_duration": duration(visit.active_seconds), "visitor_query": visitor_query,
+        }
+        return TemplateResponse(request, "admin/traffic/session_detail.html", context)

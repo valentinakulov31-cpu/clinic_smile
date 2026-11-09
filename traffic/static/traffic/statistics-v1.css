@@ -15,8 +15,17 @@
 .traffic-table th, .traffic-table td { padding: 12px; vertical-align: top; }
 .traffic-table td { overflow-wrap: anywhere; max-width: 280px; }
 .traffic-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.traffic-nowrap { white-space: nowrap; }
+.traffic-report code { white-space: nowrap; }
+.traffic-subline { display: block; color: var(--body-quiet-color); margin-top: 4px; }
+.traffic-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; padding: 20px 0; margin: 0 0 28px; border-block: 1px solid var(--hairline-color); }
+.traffic-details dt { color: var(--body-quiet-color); font-size: 13px; }
+.traffic-details dd { margin: 6px 0 0; overflow-wrap: anywhere; }
+.traffic-pagination { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
+.traffic-pagination a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 @media (max-width: 1000px) { .traffic-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) {
+  .traffic-details { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .traffic-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .traffic-totals dd { font-size: 21px; }
   .traffic-filters { gap: 12px; }
